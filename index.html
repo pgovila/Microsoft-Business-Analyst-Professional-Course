@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Northwind Trading — Checkout &amp; Sales Diagnostic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#132A46;
+    --ink-2:#1D3A5F;
+    --paper:#EEF1F5;
+    --card:#FFFFFF;
+    --decline:#C8443C;
+    --decline-soft:#F3D9D6;
+    --steady:#1B8F7F;
+    --steady-soft:#D6EDE8;
+    --gold:#DA9A3C;
+    --gold-soft:#F5E4C6;
+    --slate:#3E4A5B;
+    --slate-soft:#7B8797;
+    --line:#D9DFE7;
+    --mono:'IBM Plex Mono', monospace;
+    --sans:'IBM Plex Sans', sans-serif;
+    --disp:'Space Grotesk', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--paper);
+    color:var(--slate);
+    font-family:var(--sans);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px 80px;}
+
+  /* ---------- Header ---------- */
+  header.hero{
+    background:linear-gradient(160deg,var(--ink) 0%, var(--ink-2) 100%);
+    color:#EDF1F6;
+    padding:44px 0 0;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero-inner{max-width:1180px;margin:0 auto;padding:0 28px 46px;position:relative;z-index:2;}
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:12.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:#8FB3D9;
+    display:flex; align-items:center; gap:10px;
+  }
+  .eyebrow::before{content:"";width:20px;height:1px;background:#8FB3D9;display:inline-block;}
+  h1{
+    font-family:var(--disp);
+    font-weight:700;
+    font-size:clamp(30px,4.4vw,46px);
+    margin:14px 0 8px;
+    letter-spacing:-.01em;
+  }
+  .hero-sub{
+    max-width:640px;
+    color:#C4D2E2;
+    font-size:15.5px;
+    margin:0 0 26px;
+  }
+  .hero-flag{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    background:rgba(200,68,60,.16);
+    border:1px solid rgba(200,68,60,.45);
+    color:#F3B6B0;
+    font-family:var(--mono);
+    font-size:12.5px;
+    padding:7px 14px;
+    border-radius:100px;
+  }
+  .hero-flag b{color:#FBD8D4;font-weight:600;}
+  .dot-blink{width:7px;height:7px;border-radius:50%;background:#F0857C;animation:blink 1.8s ease-in-out infinite;}
+  @keyframes blink{0%,100%{opacity:1;}50%{opacity:.25;}}
+
+  /* torn receipt edge */
+  .tear{
+    height:14px;
+    background:var(--paper);
+    -webkit-mask: repeating-linear-gradient(115deg, #000 0 8px, transparent 8px 16px);
+            mask: repeating-linear-gradient(115deg, #000 0 8px, transparent 8px 16px);
+  }
+
+  /* ---------- Section shells ---------- */
+  section{margin-top:52px;}
+  .sec-head{display:flex; align-items:baseline; justify-content:space-between; gap:16px; margin-bottom:18px; flex-wrap:wrap;}
+  .sec-title{
+    font-family:var(--disp);
+    font-weight:600;
+    font-size:20px;
+    color:var(--ink);
+    display:flex;align-items:center;gap:10px;
+  }
+  .sec-num{
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--slate-soft);
+    background:var(--card);
+    border:1px solid var(--line);
+    padding:2px 8px;
+    border-radius:5px;
+  }
+  .sec-note{font-size:13px;color:var(--slate-soft);font-family:var(--mono);}
+
+  /* ---------- KPI strip ---------- */
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:repeat(5,1fr);
+    gap:14px;
+  }
+  .kpi{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:18px 16px 16px;
+    position:relative;
+    overflow:hidden;
+  }
+  .kpi::before{
+    content:"";
+    position:absolute; left:0; top:0; bottom:0; width:4px;
+  }
+  .kpi.down::before{background:var(--decline);}
+  .kpi.up::before{background:var(--steady);}
+  .kpi.flag::before{background:var(--gold);}
+  .kpi-label{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.03em;
+    color:var(--slate-soft);
+    text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  .kpi-value{
+    font-family:var(--disp);
+    font-size:27px;
+    font-weight:700;
+    color:var(--ink);
+    display:flex; align-items:baseline; gap:8px;
+  }
+  .kpi-delta{
+    font-family:var(--mono);
+    font-size:13px;
+    font-weight:600;
+  }
+  .kpi.down .kpi-delta{color:var(--decline);}
+  .kpi.up .kpi-delta{color:var(--steady);}
+  .kpi.flag .kpi-delta{color:var(--gold);}
+  .kpi-foot{margin-top:8px;font-size:12px;color:var(--slate-soft);}
+
+  /* ---------- Two column layout ---------- */
+  .cols{display:grid; grid-template-columns:1.5fr 1fr; gap:16px; align-items:stretch;}
+  .card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:20px 22px 16px;
+  }
+  .card h3{
+    font-family:var(--disp);
+    font-size:15.5px;
+    margin:0 0 4px;
+    color:var(--ink);
+  }
+  .card .cap{font-size:12.5px;color:var(--slate-soft);margin-bottom:14px;}
+  .chart-box{position:relative;height:280px;}
+
+  /* legend for donut */
+  .legend{display:flex;flex-direction:column;gap:9px;margin-top:14px;}
+  .legend-row{display:flex;align-items:center;gap:9px;font-size:12.5px;}
+  .legend-row .sw{width:10px;height:10px;border-radius:2.5px;flex:none;}
+  .legend-row .lbl{flex:1;color:var(--slate);}
+  .legend-row .val{font-family:var(--mono);font-weight:600;color:var(--ink);}
+
+  /* toggle buttons */
+  .toggle-row{display:flex;gap:6px;}
+  .toggle-btn{
+    font-family:var(--mono);
+    font-size:11.5px;
+    background:var(--paper);
+    border:1px solid var(--line);
+    color:var(--slate);
+    padding:5px 10px;
+    border-radius:6px;
+    cursor:pointer;
+    transition:.15s;
+  }
+  .toggle-btn.active{background:var(--ink);border-color:var(--ink);color:#fff;}
+  .toggle-btn:hover:not(.active){border-color:var(--slate-soft);}
+
+  /* ---------- 5 whys chain ---------- */
+  .whys{
+    display:flex;
+    flex-direction:column;
+    border:1px solid var(--line);
+    background:var(--card);
+    border-radius:10px;
+    overflow:hidden;
+  }
+  .why{
+    display:grid;
+    grid-template-columns:52px 1fr;
+    border-top:1px dashed var(--line);
+    cursor:pointer;
+  }
+  .why:first-child{border-top:none;}
+  .why-num{
+    background:var(--paper);
+    font-family:var(--mono);
+    font-weight:600;
+    color:var(--ink-2);
+    display:flex;align-items:flex-start;justify-content:center;
+    padding-top:16px;
+    font-size:13px;
+    border-right:1px dashed var(--line);
+  }
+  .why-body{padding:14px 18px;}
+  .why-q{font-weight:600;color:var(--ink);font-size:14px;}
+  .why-a{
+    font-family:var(--mono);
+    font-size:12.5px;
+    color:var(--slate);
+    margin-top:8px;
+    max-height:0;
+    overflow:hidden;
+    opacity:0;
+    transition:max-height .25s ease, opacity .2s ease, margin-top .25s ease;
+  }
+  .why.open .why-a{max-height:120px;opacity:1;}
+  .why.open .why-num{color:var(--decline);}
+  .why-a b{color:var(--ink-2);}
+  .why-hint{font-size:11px;color:var(--slate-soft);margin-top:2px;font-family:var(--mono);}
+  .why.open .why-hint{display:none;}
+
+  .rc-banner{
+    margin-top:14px;
+    background:var(--ink);
+    color:#EDF1F6;
+    border-radius:10px;
+    padding:18px 22px;
+    display:grid;
+    grid-template-columns:auto 1fr;
+    gap:16px;
+    align-items:flex-start;
+  }
+  .rc-banner .tag{
+    font-family:var(--mono);
+    font-size:11px;
+    text-transform:uppercase;
+    letter-spacing:.08em;
+    background:var(--decline);
+    padding:4px 9px;
+    border-radius:5px;
+    white-space:nowrap;
+  }
+  .rc-banner p{margin:0;font-size:13.5px;color:#D3DDE9;}
+  .rc-banner b{color:#fff;}
+
+  /* ---------- Power interest grid ---------- */
+  .pi-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    grid-template-rows:1fr 1fr;
+    gap:2px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+    height:340px;
+  }
+  .pi-cell{
+    background:var(--card);
+    padding:14px 16px;
+    position:relative;
+    transition:background .15s;
+  }
+  .pi-cell:hover{background:#F7F9FB;}
+  .pi-cell .pi-title{
+    font-family:var(--mono);
+    font-size:10.5px;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+    color:var(--slate-soft);
+    margin-bottom:10px;
+  }
+  .pi-cell.manage{border-top:3px solid var(--decline);}
+  .pi-cell.satisfy{border-top:3px solid var(--gold);}
+  .pi-cell.informed{border-top:3px solid var(--steady);}
+  .pi-cell.monitor{border-top:3px solid var(--slate-soft);}
+  .pi-name{
+    font-size:12.5px;
+    color:var(--ink);
+    padding:4px 0;
+    border-bottom:1px dotted var(--line);
+  }
+  .pi-name:last-child{border-bottom:none;}
+  .pi-axis-y{
+    position:absolute; left:-26px; top:50%; transform:rotate(-90deg) translateX(50%);
+    font-family:var(--mono); font-size:10px; color:var(--slate-soft); letter-spacing:.05em;
+  }
+  .pi-wrap{position:relative;margin-left:12px;}
+  .pi-axis-x{
+    text-align:center;font-family:var(--mono);font-size:10px;color:var(--slate-soft);
+    margin-top:8px;letter-spacing:.05em;
+  }
+
+  /* ---------- RACI mini ---------- */
+  .raci-table{width:100%;border-collapse:collapse;font-size:11.5px;}
+  .raci-table th,.raci-table td{
+    border:1px solid var(--line);
+    padding:7px 6px;
+    text-align:center;
+  }
+  .raci-table th{
+    background:var(--paper);
+    font-family:var(--mono);
+    font-weight:600;
+    font-size:10px;
+    color:var(--slate);
+    text-transform:uppercase;
+  }
+  .raci-table td:first-child, .raci-table th:first-child{
+    text-align:left;
+    font-family:var(--sans);
+    font-size:12px;
+    color:var(--ink);
+    font-weight:500;
+    white-space:nowrap;
+  }
+  .raci-cell{font-family:var(--mono);font-weight:700;border-radius:4px;display:inline-block;width:20px;height:20px;line-height:20px;}
+  .raci-cell.A{background:var(--decline-soft);color:var(--decline);}
+  .raci-cell.R{background:var(--steady-soft);color:var(--steady);}
+  .raci-cell.C{background:var(--gold-soft);color:var(--gold);}
+  .raci-cell.I{background:var(--paper);color:var(--slate-soft);}
+  .raci-legend{display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;}
+  .raci-legend span{font-family:var(--mono);font-size:11px;color:var(--slate);display:flex;align-items:center;gap:6px;}
+
+  /* ---------- Footer recommendation ---------- */
+  .rec{
+    margin-top:56px;
+    background:linear-gradient(135deg,var(--ink) 0%, var(--ink-2) 100%);
+    border-radius:14px;
+    padding:32px 34px;
+    color:#EDF1F6;
+    position:relative;
+    overflow:hidden;
+  }
+  .rec .eyebrow{color:#9BC4A6;}
+  .rec .eyebrow::before{background:#9BC4A6;}
+  .rec h3{font-family:var(--disp);font-size:22px;margin:12px 0 14px;}
+  .rec-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:18px;}
+  .rec-item{
+    background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:9px;
+    padding:14px 15px;
+  }
+  .rec-item .n{font-family:var(--mono);color:#8FB3D9;font-size:11px;margin-bottom:6px;}
+  .rec-item p{margin:0;font-size:13px;color:#DDE6EF;}
+
+  footer{
+    margin-top:40px;
+    text-align:center;
+    font-family:var(--mono);
+    font-size:11px;
+    color:var(--slate-soft);
+    letter-spacing:.03em;
+  }
+
+  /* ---------- Process modelling section ---------- */
+  .proc-intro{font-size:13px;color:var(--slate-soft);margin:-6px 0 16px;max-width:760px;}
+  .proc-panel{display:none;}
+  .proc-panel.active{display:block;}
+  .diagram-frame{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:14px;
+    overflow-x:auto;
+  }
+  .diagram-frame svg{display:block;}
+  .proc-legend{
+    display:flex;flex-wrap:wrap;gap:16px;margin-top:12px;
+    font-family:var(--mono);font-size:11px;color:var(--slate-soft);
+  }
+  .proc-legend span{display:flex;align-items:center;gap:6px;}
+  .proc-legend b{color:var(--ink);}
+
+  @media (max-width:920px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+    .cols{grid-template-columns:1fr;}
+    .rec-grid{grid-template-columns:repeat(2,1fr);}
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div class="eyebrow">Business Analysis · Diagnostic Dashboard</div>
+    <h1>Northwind Trading — Why March Sales Fell</h1>
+    <p class="hero-sub">Traffic held up. Purchases didn't. A month-over-month read of the March redesign shows the checkout — not demand — is the problem.</p>
+    <div class="hero-flag"><span class="dot-blink"></span> Root cause: <b>mandatory checkout registration</b>, live since March 1</div>
+  </div>
+</header>
+<div class="tear"></div>
+
+<div class="wrap">
+
+  <!-- KPI STRIP -->
+  <section id="kpis">
+    <div class="sec-head">
+      <div class="sec-title"><span class="sec-num">01</span> February → March, at a glance</div>
+      <div class="sec-note">All figures vs. February 2024 baseline</div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi down">
+        <div class="kpi-label">Total Sales Value</div>
+        <div class="kpi-value" data-count="43900" data-prefix="$">$0</div>
+        <div class="kpi-delta">▼ 38.71% · –$27,726</div>
+        <div class="kpi-foot">Feb $71,626.00</div>
+      </div>
+      <div class="kpi down">
+        <div class="kpi-label">Transactions</div>
+        <div class="kpi-value" data-count="323">0</div>
+        <div class="kpi-delta">▼ 32.29% · –154</div>
+        <div class="kpi-foot">Feb 477</div>
+      </div>
+      <div class="kpi up">
+        <div class="kpi-label">Website Visits</div>
+        <div class="kpi-value" data-count="3263">0</div>
+        <div class="kpi-delta">▲ 4.05% · +127</div>
+        <div class="kpi-foot">Feb 3,136 — demand is fine</div>
+      </div>
+      <div class="kpi down">
+        <div class="kpi-label">Avg. Transaction Value</div>
+        <div class="kpi-value" data-count="135.91" data-prefix="$" data-decimals="2">$0.00</div>
+        <div class="kpi-delta">▼ 9.49% · –$14.25</div>
+        <div class="kpi-foot">Feb $150.16</div>
+      </div>
+      <div class="kpi flag">
+        <div class="kpi-label">Checkout Complaints</div>
+        <div class="kpi-value" data-count="53">0<span style="font-size:16px;">%</span></div>
+        <div class="kpi-delta">8 of 15 complaints</div>
+        <div class="kpi-foot">Largest single category</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TREND + COMPLAINTS -->
+  <section id="trend">
+    <div class="sec-head">
+      <div class="sec-title"><span class="sec-num">02</span> The divergence: traffic vs. sales</div>
+      <div class="toggle-row" id="chartToggle">
+        <button class="toggle-btn active" data-mode="both">Both</button>
+        <button class="toggle-btn" data-mode="sales">Sales only</button>
+        <button class="toggle-btn" data-mode="visits">Visits only</button>
+      </div>
+    </div>
+    <div class="cols">
+      <div class="card">
+        <h3>Daily sales value vs. website visits — March 2024</h3>
+        <p class="cap">Visits stay volatile but don't trend down. Sales value trends steadily down all month, after the new checkout went live.</p>
+        <div class="chart-box"><canvas id="trendChart"></canvas></div>
+      </div>
+      <div class="card">
+        <h3>What customers are complaining about</h3>
+        <p class="cap">15 social posts, categorised by root theme</p>
+        <div class="chart-box" style="height:200px;"><canvas id="complaintChart"></canvas></div>
+        <div class="legend" id="complaintLegend"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5 WHYS -->
+  <section id="rootcause">
+    <div class="sec-head">
+      <div class="sec-title"><span class="sec-num">03</span> Root cause: the 5 Whys</div>
+      <div class="sec-note">Click a row to expand</div>
+    </div>
+    <div class="whys" id="whysList"></div>
+    <div class="rc-banner">
+      <div class="tag">Root cause</div>
+      <p>The <b>mandatory account-registration step and inflexible address fields</b>, added to satisfy Marketing's data-capture request and launched sitewide without usability testing, are causing customers to abandon purchases — not traffic, and not a technical fault.</p>
+    </div>
+  </section>
+
+  <!-- STAKEHOLDERS -->
+  <section id="stakeholders">
+    <div class="sec-head">
+      <div class="sec-title"><span class="sec-num">04</span> Stakeholders on the Power–Interest grid</div>
+      <div class="sec-note">Redesign project stakeholders</div>
+    </div>
+    <div class="cols" style="grid-template-columns:1fr 1.05fr;">
+      <div class="card">
+        <h3>Power–Interest mapping</h3>
+        <p class="cap">Hover a quadrant for engagement strategy</p>
+        <div class="pi-wrap">
+          <div class="pi-grid">
+            <div class="pi-cell satisfy" title="Keep Satisfied — informed on major decisions, minimal detail">
+              <div class="pi-title">Keep Satisfied · Low interest / High influence</div>
+              <div class="pi-name">Finance / Accounts Team</div>
+            </div>
+            <div class="pi-cell manage" title="Manage Closely — engage regularly, involve in decisions">
+              <div class="pi-title">Manage Closely · High interest / High influence</div>
+              <div class="pi-name">Senior Management / Executive Sponsor</div>
+              <div class="pi-name">Sales Manager (Sua)</div>
+              <div class="pi-name">Website Administrator (Ali)</div>
+              <div class="pi-name">Marketing Manager</div>
+              <div class="pi-name">Project Manager</div>
+            </div>
+            <div class="pi-cell monitor" title="Monitor — minimal effort, watch for change">
+              <div class="pi-title">Monitor · Low interest / Low influence</div>
+              <div class="pi-name" style="color:var(--slate-soft);">None currently</div>
+            </div>
+            <div class="pi-cell informed" title="Keep Informed — communicate progress, gather feedback">
+              <div class="pi-title">Keep Informed · High interest / Low influence</div>
+              <div class="pi-name">Customers (End Users)</div>
+              <div class="pi-name">Customer Support Team</div>
+              <div class="pi-name">UX/UI Designer</div>
+            </div>
+          </div>
+          <div class="pi-axis-x">Interest →</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>RACI — key redesign tasks</h3>
+        <p class="cap">Top 5 of 10 project tasks (full matrix in workbook)</p>
+        <div style="overflow-x:auto;">
+          <table class="raci-table" id="raciTable"></table>
+        </div>
+        <div class="raci-legend">
+          <span><i class="raci-cell A" style="width:14px;height:14px;line-height:14px;font-size:9px;">A</i> Accountable</span>
+          <span><i class="raci-cell R" style="width:14px;height:14px;line-height:14px;font-size:9px;">R</i> Responsible</span>
+          <span><i class="raci-cell C" style="width:14px;height:14px;line-height:14px;font-size:9px;">C</i> Consulted</span>
+          <span><i class="raci-cell I" style="width:14px;height:14px;line-height:14px;font-size:9px;">I</i> Informed</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- PROCESS MODELLING -->
+  <section id="processmodel">
+    <div class="sec-head">
+      <div class="sec-title"><span class="sec-num">05</span> Process Modelling &mdash; Order Fulfilment</div>
+      <div class="toggle-row" id="procToggle">
+        <button class="toggle-btn active" data-panel="bam">Business Activity Model</button>
+        <button class="toggle-btn" data-panel="asis">As-Is Process</button>
+        <button class="toggle-btn" data-panel="tobe">To-Be Process</button>
+      </div>
+    </div>
+    <p class="proc-intro">A complementary business process modelling exercise on Northwind Trading's order fulfilment speed, prepared as a separate diagnostic from the checkout analysis above &mdash; included here for a fuller picture of the operational case study.</p>
+
+    <div class="card proc-panel active" data-panel="bam">
+      <h3>Business Activity Model</h3>
+      <p class="cap">Northwind Trading's departments and their core activities, and how those activities connect.</p>
+      <div class="diagram-frame">
+<svg style="display:block;width:1300px;max-width:none;height:auto;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1050" font-family="Segoe UI, Arial, sans-serif">
+<rect width="1600" height="1050" fill="#ffffff"/>
+<text x="800.0" y="46" text-anchor="middle" font-size="30" font-weight="700" fill="#111827">Northwind Trading &#8212; Business Activity Model</text>
+<rect x="60" y="120" width="460" height="300" rx="18" fill="#dbeafe" fill-opacity="0.45" stroke="#1d4ed8" stroke-width="1.5" stroke-dasharray="6,4"/>
+<text x="76" y="146" font-size="15" font-weight="700" fill="#1d4ed8">Customer Experience Team</text>
+<rect x="1220" y="100" width="320" height="190" rx="18" fill="#fee2e2" fill-opacity="0.45" stroke="#b91c1c" stroke-width="1.5" stroke-dasharray="6,4"/>
+<text x="1236" y="126" font-size="15" font-weight="700" fill="#b91c1c">Sales Team</text>
+<rect x="1220" y="320" width="340" height="300" rx="18" fill="#dcfce7" fill-opacity="0.45" stroke="#15803d" stroke-width="1.5" stroke-dasharray="6,4"/>
+<text x="1236" y="346" font-size="15" font-weight="700" fill="#15803d">Finance Team</text>
+<rect x="540" y="60" width="480" height="610" rx="18" fill="#ffedd5" fill-opacity="0.45" stroke="#c2410c" stroke-width="1.5" stroke-dasharray="6,4"/>
+<text x="556" y="86" font-size="15" font-weight="700" fill="#c2410c">Operations Team</text>
+<rect x="60" y="640" width="460" height="300" rx="18" fill="#ede9fe" fill-opacity="0.45" stroke="#6d28d9" stroke-width="1.5" stroke-dasharray="6,4"/>
+<text x="76" y="666" font-size="15" font-weight="700" fill="#6d28d9">HR Team</text>
+<line x1="230.0" y1="246.0" x2="230.0" y2="294.0" stroke="#94a3b8" stroke-width="2"/>
+<line x1="320.8" y1="213.5" x2="789.2" y2="386.5" stroke="#94a3b8" stroke-width="2"/>
+<line x1="324.5" y1="195.2" x2="705.5" y2="144.8" stroke="#94a3b8" stroke-width="2"/>
+<line x1="324.9" y1="341.6" x2="1275.1" y2="378.4" stroke="#94a3b8" stroke-width="2"/>
+<line x1="1370.0" y1="426.0" x2="1370.0" y2="474.0" stroke="#94a3b8" stroke-width="2"/>
+<line x1="1275.0" y1="381.3" x2="755.0" y2="398.7" stroke="#94a3b8" stroke-width="2"/>
+<line x1="1370.0" y1="474.0" x2="1370.0" y2="236.0" stroke="#94a3b8" stroke-width="2"/>
+<line x1="230.0" y1="766.0" x2="230.0" y2="814.0" stroke="#94a3b8" stroke-width="2"/>
+<line x1="322.6" y1="709.7" x2="787.4" y2="580.3" stroke="#94a3b8" stroke-width="2"/>
+<line x1="307.5" y1="833.4" x2="802.5" y2="426.6" stroke="#94a3b8" stroke-width="2"/>
+<line x1="894.6" y1="144.0" x2="1275.4" y2="186.0" stroke="#94a3b8" stroke-width="2"/>
+<line x1="827.9" y1="184.0" x2="852.1" y2="356.0" stroke="#94a3b8" stroke-width="2"/>
+<line x1="755.0" y1="400.0" x2="785.0" y2="400.0" stroke="#94a3b8" stroke-width="2"/>
+<line x1="660.0" y1="446.0" x2="660.0" y2="524.0" stroke="#94a3b8" stroke-width="2"/>
+<line x1="751.1" y1="387.0" x2="1278.9" y2="203.0" stroke="#94a3b8" stroke-width="2"/>
+<line x1="804.8" y1="428.1" x2="735.2" y2="541.9" stroke="#94a3b8" stroke-width="2"/>
+<line x1="880.0" y1="446.0" x2="880.0" y2="524.0" stroke="#94a3b8" stroke-width="2"/>
+<ellipse cx="230" cy="200" rx="95" ry="46" fill="white" stroke="#1d4ed8" stroke-width="2.5"/>
+<text x="230" y="191" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Customer</text>
+<text x="230" y="209" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Service</text>
+<ellipse cx="230" cy="340" rx="95" ry="46" fill="white" stroke="#1d4ed8" stroke-width="2.5"/>
+<text x="230" y="331" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Customer Satisfaction</text>
+<text x="230" y="349" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Monitoring</text>
+<ellipse cx="1370" cy="190" rx="95" ry="46" fill="white" stroke="#b91c1c" stroke-width="2.5"/>
+<text x="1370" y="190" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Bulk Sales</text>
+<ellipse cx="1370" cy="380" rx="95" ry="46" fill="white" stroke="#15803d" stroke-width="2.5"/>
+<text x="1370" y="371" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Financial</text>
+<text x="1370" y="389" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Planning</text>
+<ellipse cx="1370" cy="520" rx="95" ry="46" fill="white" stroke="#15803d" stroke-width="2.5"/>
+<text x="1370" y="511" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Finance and</text>
+<text x="1370" y="529" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Accounting Services</text>
+<ellipse cx="800" cy="140" rx="95" ry="46" fill="white" stroke="#c2410c" stroke-width="2.5"/>
+<text x="800" y="140" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">IT Support</text>
+<ellipse cx="660" cy="400" rx="95" ry="46" fill="white" stroke="#c2410c" stroke-width="2.5"/>
+<text x="660" y="391" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Supply Chain</text>
+<text x="660" y="409" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Planning</text>
+<ellipse cx="880" cy="400" rx="95" ry="46" fill="white" stroke="#c2410c" stroke-width="2.5"/>
+<text x="880" y="391" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Logistics and</text>
+<text x="880" y="409" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Distribution</text>
+<ellipse cx="660" cy="570" rx="95" ry="46" fill="white" stroke="#c2410c" stroke-width="2.5"/>
+<text x="660" y="561" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Inventory</text>
+<text x="660" y="579" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Controls</text>
+<ellipse cx="880" cy="570" rx="95" ry="46" fill="white" stroke="#c2410c" stroke-width="2.5"/>
+<text x="880" y="561" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Facility</text>
+<text x="880" y="579" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Management</text>
+<ellipse cx="230" cy="720" rx="95" ry="46" fill="white" stroke="#6d28d9" stroke-width="2.5"/>
+<text x="230" y="711" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Human Resources</text>
+<text x="230" y="729" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Planning</text>
+<ellipse cx="230" cy="860" rx="95" ry="46" fill="white" stroke="#6d28d9" stroke-width="2.5"/>
+<text x="230" y="851" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Human Resources</text>
+<text x="230" y="869" text-anchor="middle" font-size="14.5" font-weight="600" fill="#1f2937">Management</text>
+</svg>
+      </div>
+    </div>
+
+    <div class="card proc-panel" data-panel="asis">
+      <h3>As-Is Process State</h3>
+      <p class="cap">Current order fulfilment process, modelled in BPMN &mdash; entirely sequential, with two manual coordination hand-offs between Warehouse, Administrator, and Delivery Driver.</p>
+      <div class="diagram-frame">
+<svg style="display:block;width:1300px;max-width:none;height:auto;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2500 1136" font-family="Segoe UI, Arial, sans-serif">
+<rect width="2500" height="1136" fill="#ffffff"/>
+<text x="1250.0" y="34" text-anchor="middle" font-size="23" font-weight="700" fill="#1F2937">As-Is Process State &#8212; Order Fulfilment (Northwind Trading)</text>
+<defs>
+<marker id="arrow-asis" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#1F2937"/></marker>
+<marker id="darrow-asis" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker>
+</defs>
+<rect x="1110.0" y="60" width="280" height="90" fill="#4472C4" rx="4"/>
+<text x="1250.0" y="111.0" text-anchor="middle" font-size="17" font-weight="700" fill="white">Customer</text>
+<rect x="40" y="170" width="2420" height="946" fill="none" stroke="#1F2937" stroke-width="2"/>
+<rect x="40" y="170" width="46" height="946" fill="#2F5597"/>
+<text x="69.0" y="643.0" text-anchor="middle" font-size="16" font-weight="700" fill="white" transform="rotate(-90 69.0 643.0)">Northwind Trading &#8212; Order Fulfilment</text>
+<rect x="86" y="170" width="46" height="220" fill="#4472C4"/>
+<text x="114.0" y="280.0" text-anchor="middle" font-size="14.5" font-weight="700" fill="white" transform="rotate(-90 114.0 280.0)">Finance Team</text>
+<rect x="132" y="170" width="2328" height="220" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+<rect x="86" y="390" width="46" height="220" fill="#4472C4"/>
+<text x="114.0" y="500.0" text-anchor="middle" font-size="14.5" font-weight="700" fill="white" transform="rotate(-90 114.0 500.0)">Warehouse Team</text>
+<rect x="132" y="390" width="2328" height="220" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+<rect x="86" y="610" width="46" height="220" fill="#4472C4"/>
+<text x="114.0" y="720.0" text-anchor="middle" font-size="14.5" font-weight="700" fill="white" transform="rotate(-90 114.0 720.0)">Administrator</text>
+<rect x="132" y="610" width="2328" height="220" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+<rect x="86" y="830" width="46" height="220" fill="#4472C4"/>
+<text x="114.0" y="940.0" text-anchor="middle" font-size="14.5" font-weight="700" fill="white" transform="rotate(-90 114.0 940.0)">Delivery Driver</text>
+<rect x="132" y="830" width="2328" height="220" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+<circle cx="230" cy="326.0" r="23" fill="white" stroke="#15803d" stroke-width="2.5"/>
+<text x="230" y="370.0" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2937">Order</text>
+<text x="230" y="385.0" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2937">Received</text>
+<rect x="346.0" y="294.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="430" y="322.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Log</text>
+<text x="430" y="340.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Order</text>
+<rect x="556.0" y="294.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="640" y="322.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Create</text>
+<text x="640" y="340.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Invoice</text>
+<path d="M 621 215.0 L 649 215.0 L 659 225.0 L 659 265.0 L 621 265.0 Z" fill="#fffbeb" stroke="#92400e" stroke-width="1.5"/>
+<path d="M 649 215.0 L 649 225.0 L 659 225.0" fill="none" stroke="#92400e" stroke-width="1.5"/>
+<text x="640" y="280.0" text-anchor="middle" font-size="12" font-weight="600" fill="#78350f">Invoice</text>
+<rect x="766.0" y="294.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="850" y="322.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Send Invoice</text>
+<text x="850" y="340.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">to Customer</text>
+<rect x="976.0" y="734.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="1060" y="762.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Create Docket</text>
+<text x="1060" y="780.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">for Warehouse</text>
+<path d="M 1041 655.0 L 1069 655.0 L 1079 665.0 L 1079 705.0 L 1041 705.0 Z" fill="#fffbeb" stroke="#92400e" stroke-width="1.5"/>
+<path d="M 1069 655.0 L 1069 665.0 L 1079 665.0" fill="none" stroke="#92400e" stroke-width="1.5"/>
+<text x="1060" y="720.0" text-anchor="middle" font-size="12" font-weight="600" fill="#78350f">Docket</text>
+<rect x="1186.0" y="514.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="1270" y="542.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Retrieve</text>
+<text x="1270" y="560.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Ordered Items</text>
+<rect x="1396.0" y="514.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="1480" y="542.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Package</text>
+<text x="1480" y="560.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Ordered Items</text>
+<path d="M 1461 435.0 L 1489 435.0 L 1499 445.0 L 1499 485.0 L 1461 485.0 Z" fill="#fffbeb" stroke="#92400e" stroke-width="1.5"/>
+<path d="M 1489 435.0 L 1489 445.0 L 1499 445.0" fill="none" stroke="#92400e" stroke-width="1.5"/>
+<text x="1480" y="500.0" text-anchor="middle" font-size="12" font-weight="600" fill="#78350f">Packaged\nItem</text>
+<rect x="1606.0" y="514.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="1690" y="542.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Notify Admin:</text>
+<text x="1690" y="560.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Ready to Ship</text>
+<rect x="1816.0" y="734.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="1900" y="762.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Arrange</text>
+<text x="1900" y="780.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Collection</text>
+<rect x="2026.0" y="954.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="2110" y="982.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Collect</text>
+<text x="2110" y="1000.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Items</text>
+<rect x="2196.0" y="954.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="2280" y="982.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Deliver Items</text>
+<text x="2280" y="1000.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">to Customer</text>
+<circle cx="2440" cy="986.0" r="23" fill="white" stroke="#b91c1c" stroke-width="4.5"/>
+<text x="2440" y="1030.0" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2937">Order</text>
+<text x="2440" y="1045.0" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2937">Delivered</text>
+<line x1="253" y1="326.0" x2="346.0" y2="326.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-asis)"/>
+<line x1="514.0" y1="326.0" x2="556.0" y2="326.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-asis)"/>
+<line x1="724.0" y1="326.0" x2="766.0" y2="326.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-asis)"/>
+<line x1="934.0" y1="326.0" x2="976.0" y2="766.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-asis)"/>
+<line x1="1144.0" y1="766.0" x2="1186.0" y2="546.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-asis)"/>
+<line x1="1354.0" y1="546.0" x2="1396.0" y2="546.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-asis)"/>
+<line x1="1564.0" y1="546.0" x2="1606.0" y2="546.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-asis)"/>
+<line x1="1774.0" y1="546.0" x2="1816.0" y2="766.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-asis)"/>
+<line x1="1984.0" y1="766.0" x2="2026.0" y2="986.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-asis)"/>
+<line x1="2194.0" y1="986.0" x2="2196.0" y2="986.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-asis)"/>
+<line x1="2364.0" y1="986.0" x2="2417" y2="986.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-asis)"/>
+<line x1="850" y1="294.0" x2="1208.0" y2="150" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#darrow-asis)"/>
+<text x="1029.0" y="214.0" text-anchor="middle" font-size="11" fill="#475569" font-style="italic">Invoice</text>
+</svg>
+      </div>
+    </div>
+
+    <div class="card proc-panel" data-panel="tobe">
+      <h3>To-Be Process State</h3>
+      <p class="cap">Proposed process: two parallel gateways and two automated tasks shorten the critical path from ten sequential steps to seven, without adding headcount.</p>
+      <div class="diagram-frame">
+<svg style="display:block;width:1300px;max-width:none;height:auto;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2950 1136" font-family="Segoe UI, Arial, sans-serif">
+<rect width="2950" height="1136" fill="#ffffff"/>
+<text x="1475.0" y="34" text-anchor="middle" font-size="23" font-weight="700" fill="#1F2937">To-Be Process State &#8212; Order Fulfilment (Northwind Trading)</text>
+<defs>
+<marker id="arrow-tobe" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#1F2937"/></marker>
+<marker id="darrow-tobe" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#64748b"/></marker>
+</defs>
+<rect x="1335.0" y="60" width="280" height="90" fill="#4472C4" rx="4"/>
+<text x="1475.0" y="111.0" text-anchor="middle" font-size="17" font-weight="700" fill="white">Customer</text>
+<rect x="40" y="170" width="2870" height="946" fill="none" stroke="#1F2937" stroke-width="2"/>
+<rect x="40" y="170" width="46" height="946" fill="#2F5597"/>
+<text x="69.0" y="643.0" text-anchor="middle" font-size="16" font-weight="700" fill="white" transform="rotate(-90 69.0 643.0)">Northwind Trading &#8212; Order Fulfilment (To-Be)</text>
+<rect x="86" y="170" width="46" height="220" fill="#4472C4"/>
+<text x="114.0" y="280.0" text-anchor="middle" font-size="14.5" font-weight="700" fill="white" transform="rotate(-90 114.0 280.0)">Finance Team</text>
+<rect x="132" y="170" width="2778" height="220" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+<rect x="86" y="390" width="46" height="220" fill="#4472C4"/>
+<text x="114.0" y="500.0" text-anchor="middle" font-size="14.5" font-weight="700" fill="white" transform="rotate(-90 114.0 500.0)">Warehouse Team</text>
+<rect x="132" y="390" width="2778" height="220" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+<rect x="86" y="610" width="46" height="220" fill="#4472C4"/>
+<text x="114.0" y="720.0" text-anchor="middle" font-size="14.5" font-weight="700" fill="white" transform="rotate(-90 114.0 720.0)">Administrator</text>
+<rect x="132" y="610" width="2778" height="220" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+<rect x="86" y="830" width="46" height="220" fill="#4472C4"/>
+<text x="114.0" y="940.0" text-anchor="middle" font-size="14.5" font-weight="700" fill="white" transform="rotate(-90 114.0 940.0)">Delivery Driver</text>
+<rect x="132" y="830" width="2778" height="220" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
+<circle cx="210" cy="326.0" r="23" fill="white" stroke="#15803d" stroke-width="2.5"/>
+<text x="210" y="370.0" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2937">Order</text>
+<text x="210" y="385.0" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2937">Received</text>
+<rect x="316.0" y="294.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="400" y="322.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Log</text>
+<text x="400" y="340.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Order</text>
+<line x1="233" y1="326.0" x2="316.0" y2="326.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<polygon points="570,516.0 600,546.0 570,576.0 540,546.0" fill="#FFE699" stroke="#a16207" stroke-width="2.5"/>
+<text x="570" y="553.0" text-anchor="middle" font-size="22" font-weight="700" fill="#a16207">+</text>
+<text x="570" y="594.0" text-anchor="middle" font-size="11.5" font-weight="600" fill="#78350f">Split: Finance path runs</text>
+<text x="570" y="609.0" text-anchor="middle" font-size="11.5" font-weight="600" fill="#78350f">independently of</text>
+<text x="570" y="624.0" text-anchor="middle" font-size="11.5" font-weight="600" fill="#78350f">fulfilment path</text>
+<line x1="484.0" y1="326.0" x2="570" y2="516.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<rect x="716.0" y="294.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="800" y="322.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Generate</text>
+<text x="800" y="340.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Invoice</text>
+<circle cx="732.0" cy="308.0" r="9" fill="none" stroke="#a16207" stroke-width="1.6"/>
+<text x="732.0" y="312.0" text-anchor="middle" font-size="12" fill="#a16207">&#9881;</text>
+<path d="M 781 215.0 L 809 215.0 L 819 225.0 L 819 265.0 L 781 265.0 Z" fill="#fffbeb" stroke="#92400e" stroke-width="1.5"/>
+<path d="M 809 215.0 L 809 225.0 L 819 225.0" fill="none" stroke="#92400e" stroke-width="1.5"/>
+<text x="800" y="280.0" text-anchor="middle" font-size="12" font-weight="600" fill="#78350f">Invoice</text>
+<rect x="926.0" y="294.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="1010" y="322.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Send Invoice</text>
+<text x="1010" y="340.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">to Customer</text>
+<circle cx="1160" cy="326.0" r="23" fill="white" stroke="#b91c1c" stroke-width="4.5"/>
+<text x="1160" y="370.0" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2937">Invoice</text>
+<text x="1160" y="385.0" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2937">Sent</text>
+<line x1="591" y1="525.0" x2="716.0" y2="326.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<line x1="884.0" y1="326.0" x2="926.0" y2="326.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<line x1="1094.0" y1="326.0" x2="1137" y2="326.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<line x1="1010" y1="294.0" x2="1433.0" y2="150" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#darrow-tobe)"/>
+<text x="1221.5" y="214.0" text-anchor="middle" font-size="11" fill="#475569" font-style="italic">Invoice</text>
+<rect x="716.0" y="734.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="800" y="762.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Generate</text>
+<text x="800" y="780.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Docket</text>
+<circle cx="732.0" cy="748.0" r="9" fill="none" stroke="#a16207" stroke-width="1.6"/>
+<text x="732.0" y="752.0" text-anchor="middle" font-size="12" fill="#a16207">&#9881;</text>
+<path d="M 781 655.0 L 809 655.0 L 819 665.0 L 819 705.0 L 781 705.0 Z" fill="#fffbeb" stroke="#92400e" stroke-width="1.5"/>
+<path d="M 809 655.0 L 809 665.0 L 819 665.0" fill="none" stroke="#92400e" stroke-width="1.5"/>
+<text x="800" y="720.0" text-anchor="middle" font-size="12" font-weight="600" fill="#78350f">Docket</text>
+<line x1="549" y1="567.0" x2="716.0" y2="766.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<rect x="926.0" y="514.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="1010" y="542.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Retrieve</text>
+<text x="1010" y="560.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Ordered Items</text>
+<line x1="884.0" y1="766.0" x2="926.0" y2="546.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<polygon points="1230,626.0 1260,656.0 1230,686.0 1200,656.0" fill="#FFE699" stroke="#a16207" stroke-width="2.5"/>
+<text x="1230" y="663.0" text-anchor="middle" font-size="22" font-weight="700" fill="#a16207">+</text>
+<text x="1230" y="704.0" text-anchor="middle" font-size="11.5" font-weight="600" fill="#78350f">Split: Packaging and</text>
+<text x="1230" y="719.0" text-anchor="middle" font-size="11.5" font-weight="600" fill="#78350f">collection scheduling</text>
+<text x="1230" y="734.0" text-anchor="middle" font-size="11.5" font-weight="600" fill="#78350f">run in parallel</text>
+<line x1="1094.0" y1="546.0" x2="1230" y2="626.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<rect x="1376.0" y="514.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="1460" y="542.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Package</text>
+<text x="1460" y="560.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Ordered Items</text>
+<path d="M 1441 435.0 L 1469 435.0 L 1479 445.0 L 1479 485.0 L 1441 485.0 Z" fill="#fffbeb" stroke="#92400e" stroke-width="1.5"/>
+<path d="M 1469 435.0 L 1469 445.0 L 1479 445.0" fill="none" stroke="#92400e" stroke-width="1.5"/>
+<text x="1460" y="500.0" text-anchor="middle" font-size="12" font-weight="600" fill="#78350f">Packaged\nItem</text>
+<line x1="1251" y1="635.0" x2="1376.0" y2="546.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<path d="M 1644 634.0 v 48 a 26 9 0 0 0 52 0 v -48" fill="#eef2ff" stroke="#4338ca" stroke-width="1.5"/>
+<ellipse cx="1670" cy="634.0" rx="26" ry="9" fill="#eef2ff" stroke="#4338ca" stroke-width="1.5"/>
+<text x="1670" y="700.0" text-anchor="middle" font-size="11.5" font-weight="600" fill="#3730a3">Tracking</text>
+<text x="1670" y="714.0" text-anchor="middle" font-size="11.5" font-weight="600" fill="#3730a3">System</text>
+<line x1="1460" y1="578.0" x2="1650" y2="646.0" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#darrow-tobe)"/>
+<text x="1555.0" y="604.0" text-anchor="middle" font-size="11" fill="#475569" font-style="italic">logs prep time</text>
+<rect x="1376.0" y="734.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="1460" y="762.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Schedule</text>
+<text x="1460" y="780.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Collection</text>
+<line x1="1209" y1="677.0" x2="1376.0" y2="766.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<line x1="1690" y1="650.0" x2="1460" y2="734.0" stroke="#64748b" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#darrow-tobe)"/>
+<text x="1575.0" y="684.0" text-anchor="middle" font-size="11" fill="#475569" font-style="italic">reads est.</text>
+<polygon points="1880,626.0 1910,656.0 1880,686.0 1850,656.0" fill="#FFE699" stroke="#a16207" stroke-width="2.5"/>
+<text x="1880" y="663.0" text-anchor="middle" font-size="22" font-weight="700" fill="#a16207">+</text>
+<text x="1880" y="704.0" text-anchor="middle" font-size="11.5" font-weight="600" fill="#78350f">Join</text>
+<line x1="1544.0" y1="546.0" x2="1880" y2="626.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<line x1="1544.0" y1="766.0" x2="1880" y2="686.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<rect x="2006.0" y="734.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="2090" y="762.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Arrange</text>
+<text x="2090" y="780.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Collection</text>
+<line x1="1901" y1="646.0" x2="2006.0" y2="766.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<rect x="2236.0" y="954.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="2320" y="982.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Collect</text>
+<text x="2320" y="1000.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Items</text>
+<rect x="2446.0" y="954.0" width="168" height="64" rx="9" fill="#ffffff" stroke="#1F2937" stroke-width="2"/>
+<text x="2530" y="982.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">Deliver Items</text>
+<text x="2530" y="1000.0" text-anchor="middle" font-size="13.5" font-weight="600" fill="#1F2937">to Customer</text>
+<circle cx="2720" cy="986.0" r="23" fill="white" stroke="#b91c1c" stroke-width="4.5"/>
+<text x="2720" y="1030.0" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2937">Order</text>
+<text x="2720" y="1045.0" text-anchor="middle" font-size="12.5" font-weight="600" fill="#1F2937">Delivered</text>
+<line x1="2174.0" y1="766.0" x2="2236.0" y2="986.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<line x1="2404.0" y1="986.0" x2="2446.0" y2="986.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+<line x1="2614.0" y1="986.0" x2="2697" y2="986.0" stroke="#1F2937" stroke-width="2"  marker-end="url(#arrow-tobe)"/>
+</svg>
+      </div>
+      <div class="proc-legend">
+        <span>&#9881; <b>Automated task</b> &mdash; generated by a software solution rather than created manually</span>
+        <span>&#9670; <b>Parallel gateway</b> &mdash; paths on either side proceed at the same time</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECOMMENDATION -->
+  <section>
+    <div class="rec">
+      <div class="eyebrow">Recommendation</div>
+      <h3>Fix the checkout before the next reporting cycle</h3>
+      <p style="max-width:680px;color:#C4D2E2;font-size:13.5px;">Traffic is not at risk — conversion is. Four changes, ranked by complaint share, address 100% of what customers are telling Northwind Trading.</p>
+      <div class="rec-grid">
+        <div class="rec-item"><div class="n">53% of complaints</div><p>Reinstate <b style="color:#fff;">guest checkout</b> and make address fields optional where a house number doesn't apply.</p></div>
+        <div class="rec-item"><div class="n">20% of complaints</div><p>Revisit the new layout — usability-test the redesign against the old flow before further rollout.</p></div>
+        <div class="rec-item"><div class="n">13% of complaints</div><p>Improve product categorisation and rewrite vague product descriptions.</p></div>
+        <div class="rec-item"><div class="n">14% of complaints</div><p>Add a payment method beyond credit card; finish Ali's image-speed optimisation.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>Northwind Trading · Problem Identification &amp; Stakeholder Management Case Study · Prepared for Management Review</footer>
+</div>
+
+<script>
+Chart.defaults.font.family = "'IBM Plex Mono', monospace";
+Chart.defaults.color = '#7B8797';
+
+// ---------- KPI count-up ----------
+function countUp(el){
+  const target = parseFloat(el.dataset.count);
+  const prefix = el.dataset.prefix || '';
+  const decimals = parseInt(el.dataset.decimals || '0');
+  const suffix = el.textContent.includes('%') ? '%' : '';
+  const dur = 900;
+  const start = performance.now();
+  function frame(now){
+    const p = Math.min(1, (now-start)/dur);
+    const eased = 1 - Math.pow(1-p, 3);
+    const val = target * eased;
+    const formatted = decimals ? val.toFixed(decimals) : Math.round(val).toLocaleString('en-US');
+    el.innerHTML = prefix + (decimals ? Number(formatted).toLocaleString('en-US', {minimumFractionDigits:decimals, maximumFractionDigits:decimals}) : formatted) + (suffix ? '<span style="font-size:16px;">%</span>' : '');
+    if(p<1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+document.querySelectorAll('.kpi-value').forEach(countUp);
+
+// ---------- Trend chart ----------
+const days = Array.from({length:31}, (_,i)=>i+1);
+const sales = [1800,1650,1550,1700,1900,2000,1850,1600,1550,1750,1450,1400,1500,1320,1550,1340,1470,1300,1180,1370,1020,1250,1150,1350,980,1200,1120,1320,920,1260,1100];
+const visits = [90,84,153,97,96,102,112,105,91,112,144,204,99,198,108,81,90,72,63,81,36,48,112,63,42,73,124,131,120,153,179];
+
+const ctx = document.getElementById('trendChart').getContext('2d');
+const trendChart = new Chart(ctx, {
+  type:'line',
+  data:{
+    labels: days,
+    datasets:[
+      {
+        label:'Sales Value ($)',
+        data: sales,
+        borderColor:'#C8443C',
+        backgroundColor:'rgba(200,68,60,0.08)',
+        borderWidth:2.4,
+        pointRadius:0,
+        pointHoverRadius:4,
+        tension:.3,
+        fill:true,
+        yAxisID:'y'
+      },
+      {
+        label:'Website Visits',
+        data: visits,
+        borderColor:'#1B8F7F',
+        backgroundColor:'rgba(27,143,127,0.06)',
+        borderWidth:2,
+        borderDash:[4,3],
+        pointRadius:0,
+        pointHoverRadius:4,
+        tension:.3,
+        fill:false,
+        yAxisID:'y1'
+      }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    interaction:{mode:'index', intersect:false},
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'#132A46', titleFont:{family:"'Space Grotesk'", size:12}, bodyFont:{family:"'IBM Plex Mono'", size:11.5},
+        padding:10, cornerRadius:6,
+        callbacks:{ title:(items)=>'March '+items[0].label }
+      }
+    },
+    scales:{
+      x:{ grid:{display:false}, ticks:{maxTicksLimit:10, font:{size:10}} },
+      y:{ position:'left', grid:{color:'#EEF1F5'}, ticks:{font:{size:10}, callback:v=>'$'+v} , title:{display:true,text:'Sales ($)',font:{size:10}}},
+      y1:{ position:'right', grid:{display:false}, ticks:{font:{size:10}}, title:{display:true,text:'Visits',font:{size:10}} }
+    }
+  }
+});
+
+document.getElementById('chartToggle').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.toggle-btn');
+  if(!btn) return;
+  document.querySelectorAll('#chartToggle .toggle-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const mode = btn.dataset.mode;
+  trendChart.data.datasets[0].hidden = (mode==='visits');
+  trendChart.data.datasets[1].hidden = (mode==='sales');
+  trendChart.update();
+});
+
+document.getElementById('procToggle').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.toggle-btn');
+  if(!btn) return;
+  document.querySelectorAll('#procToggle .toggle-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const target = btn.dataset.panel;
+  document.querySelectorAll('.proc-panel').forEach(p=>{
+    p.classList.toggle('active', p.dataset.panel === target);
+  });
+});
+
+// ---------- Complaint donut ----------
+const complaintData = [
+  {label:'Checkout Process', value:8, color:'#C8443C'},
+  {label:'Website Design', value:3, color:'#DA9A3C'},
+  {label:'Navigation / Product Info', value:2, color:'#1B8F7F'},
+  {label:'Website Speed', value:1, color:'#5C7A9C'},
+  {label:'Payment Options', value:1, color:'#9AA6B4'}
+];
+new Chart(document.getElementById('complaintChart').getContext('2d'), {
+  type:'doughnut',
+  data:{
+    labels: complaintData.map(d=>d.label),
+    datasets:[{ data: complaintData.map(d=>d.value), backgroundColor: complaintData.map(d=>d.color), borderWidth:3, borderColor:'#fff' }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false, cutout:'62%',
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'#132A46', bodyFont:{family:"'IBM Plex Mono'", size:11.5}, padding:9, cornerRadius:6,
+        callbacks:{ label:(c)=> c.label+': '+c.parsed+' complaints ('+Math.round(c.parsed/15*100)+'%)' }
+      }
+    }
+  }
+});
+const legendEl = document.getElementById('complaintLegend');
+complaintData.forEach(d=>{
+  const pct = Math.round(d.value/15*100);
+  legendEl.innerHTML += `<div class="legend-row"><span class="sw" style="background:${d.color}"></span><span class="lbl">${d.label}</span><span class="val">${d.value} · ${pct}%</span></div>`;
+});
+
+// ---------- 5 Whys ----------
+const whys = [
+  {q:'Why did March sales decline despite similar (even slightly higher) website traffic?', a:'<b>Sua, Sales Manager:</b> "Visits actually rose in March, but transactions fell over 30% — something in the funnel is stopping people converting."'},
+  {q:'Why did the conversion rate drop so sharply?', a:'<b>Ali, Website Administrator:</b> "No outages or bugs reported — if people are dropping off, it’s the new checkout flow, not a site fault."'},
+  {q:'Why are customers abandoning checkout specifically?', a:'<b>Customer complaint:</b> "I was forced to create an account and enter a house number I don’t have — I gave up and shopped elsewhere."'},
+  {q:'Why does checkout now require mandatory registration and rigid address fields?', a:'<b>Marketing Manager:</b> "We asked for registration to build a customer database for promotions — we didn’t realise it would block guest purchases."'},
+  {q:'Why was this change rolled out without testing its impact on conversion?', a:'<b>Ali, Website Administrator:</b> "We launched the full new checkout in one go to meet Marketing’s deadline, with no pilot or usability test first."'}
+];
+const whysList = document.getElementById('whysList');
+whys.forEach((w,i)=>{
+  const row = document.createElement('div');
+  row.className = 'why';
+  row.innerHTML = `<div class="why-num">${String(i+1).padStart(2,'0')}</div>
+    <div class="why-body">
+      <div class="why-q">${w.q}</div>
+      <div class="why-hint">click to reveal stakeholder response ↓</div>
+      <div class="why-a">${w.a}</div>
+    </div>`;
+  row.addEventListener('click', ()=> row.classList.toggle('open'));
+  whysList.appendChild(row);
+});
+whysList.firstChild.classList.add('open');
+
+// ---------- RACI mini table ----------
+const raciCols = ['PM','Website Admin','Marketing','Sales Mgr','UX/UI'];
+const raciRows = [
+  {task:'Identify website issues', vals:['A','R','C','R','I']},
+  {task:'Requirements & user stories', vals:['A','C','C','C','R']},
+  {task:'Checkout re-design (workshops)', vals:['A','C','C','C','R']},
+  {task:'Usability testing', vals:['A','C','I','I','R']},
+  {task:'Website launch', vals:['R','R','C','I','C']}
+];
+const raciTable = document.getElementById('raciTable');
+let thead = '<tr><th>Task</th>' + raciCols.map(c=>`<th>${c}</th>`).join('') + '</tr>';
+let tbody = raciRows.map(r=>'<tr><td>'+r.task+'</td>'+r.vals.map(v=>`<td><span class="raci-cell ${v}">${v}</span></td>`).join('')+'</tr>').join('');
+raciTable.innerHTML = thead + tbody;
+</script>
+</body>
+</html>
